@@ -1,10 +1,13 @@
 """
 This is the core logic for the Free-text Response XBlock
 """
+import pkg_resources
+
 from enum import Enum
 from django.db import IntegrityError
-from django.template.context import Context
-from django.template.loader import get_template
+#from django.template.context import Context
+#from django.template.loader import get_template
+from django.template import Context, Template
 from django.utils.translation import ungettext
 from django.utils.translation import ugettext_lazy as _
 from django.utils.translation import ugettext
@@ -213,6 +216,11 @@ class FreeTextResponse(StudioEditableXBlockMixin, XBlock):
         'submitted_message',
         'saved_message',
     )
+    
+    def resource_string(self, path):
+        """Handy helper for getting resources from our kit."""
+        data = pkg_resources.resource_string(__name__, path)
+        return data.decode("utf8")
 
     def build_fragment(
             self,
@@ -269,19 +277,17 @@ class FreeTextResponse(StudioEditableXBlockMixin, XBlock):
                 'word_count_message': self._get_word_count_message(),
             }
         )
-        template = get_template('freetextresponse_view.html')
-        fragment = self.build_fragment(
-            template,
-            context,
-            initialize_js_func='FreeTextResponseView',
-            additional_css=[
-                'public/view.less.min.css',
-            ],
-            additional_js=[
-                'public/view.js.min.js',
-            ],
-        )
+        template = self.render_template('templates/freetextresponse_view.html', context)
+        fragment = Fragment(template)
+        fragment.add_css(self.resource_string("public/view.less.min.css"))
+        fragment.add_javascript(self.resource_string("public/view.js.min.js"))
+        fragment.initialize_js('FreeTextResponseView')
         return fragment
+    
+    def render_template(self, template_path, context):
+        template_str = self.resource_string(template_path)
+        template = Template(template_str)
+        return template.render(Context(context))
 
     def max_score(self):
         """
